@@ -1,13 +1,30 @@
 import React from 'react'
-import Register from './Register';
-import About from './About';
-import { Route } from 'react-router-dom'
+import Register from './Register'
+import About from './About'
+import { Route, Redirect } from 'react-router-dom'
 
-export default function App() {
-    return (
-        <div align="center">
-            <Route exact path="/" component={Register} />
-            <Route path="/about" component={About} />
-        </div>
-    );
+const PrivateRoute = ({ component: Component, ...rest }) => (
+    <Route {...rest} render={(props) => (
+        typeof window !== 'undefined' ?
+            localStorage.getItem("TOKEN") !== null
+                ? <Component {...props} />
+                : window.location.href = 'https://example.com/1234'
+            : <Component {...props} />
+    )} />
+)
+
+class App extends React.Component {
+    render() {
+        if (typeof window !== 'undefined') {
+            localStorage.setItem("TOKEN", "abcd")
+        }
+        return (
+            <div align="center">
+                <Route exact path="/" component={Register} />
+                <PrivateRoute path="/about" component={About} />
+            </div>
+        );
+    }
 }
+
+export default App
