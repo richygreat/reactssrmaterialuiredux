@@ -1,12 +1,12 @@
 import React from 'react'
-import Home from './components/Home';
-import About from './components/About';
+import Register from './Register';
+import About from './About';
 import { Route } from 'react-router-dom'
 
 export default function App() {
     return (
         <div align="center">
-            <Route exact path="/" component={Home} />
+            <Route exact path="/" component={Register} />
             <Route path="/about" component={About} />
         </div>
     );

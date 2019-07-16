@@ -19,7 +19,12 @@
     "react-dom": "latest",
     "webpack": "latest",
     "webpack-cli": "latest",
-    "react-router-dom": "latest"
+    "react-router-dom": "latest",
+    "react-redux": "latest",
+    "react-scripts": "latest",
+    "redux": "latest",
+    "redux-form": "latest",
+    "redux-thunk": "latest"
   },
   "scripts": {
     "start": "npm-run-all -p build serve",

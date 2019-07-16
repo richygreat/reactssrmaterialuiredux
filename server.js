@@ -7,7 +7,11 @@ import { StaticRouter as Router } from 'react-router-dom'
 import App from './App';
 import theme from './theme';
 
-function renderFullPage(html, css) {
+import { createStore } from 'redux'
+import { Provider } from 'react-redux'
+import reducers from './reducers'
+
+function renderFullPage(html, css, preloadedState) {
   return `
     <!DOCTYPE html>
     <html lang="en">
@@ -21,33 +25,48 @@ function renderFullPage(html, css) {
       <body>
         <script async src="build/bundle.js"></script>
         <div id="root">${html}</div>
+        <script>
+          // WARNING: See the following for security issues around embedding JSON in HTML:
+          // http://redux.js.org/recipes/ServerRendering.html#security-considerations
+          window.__PRELOADED_STATE__ = ${JSON.stringify(preloadedState).replace(
+            /</g,
+            '\\u003c'
+          )}
+        </script>
       </body>
     </html>
   `;
 }
 
 function handleRender(req, res) {
+  const store = createStore(reducers)
+
   const context = {};
   const sheets = new ServerStyleSheets();
 
   // Render the component to a string.
   const html = ReactDOMServer.renderToString(
     sheets.collect(
-      <ThemeProvider theme={theme}>
-        {/* CssBaseline kickstart an elegant, consistent, and simple baseline to build upon. */}
-        <CssBaseline />
-        <Router location={req.url} context={context}>
-          <App />
-        </Router>
-      </ThemeProvider>,
+      <Provider store={store}>
+        <ThemeProvider theme={theme}>
+          {/* CssBaseline kickstart an elegant, consistent, and simple baseline to build upon. */}
+          <CssBaseline />
+          <Router location={req.url} context={context}>
+            <App />
+          </Router>
+        </ThemeProvider>
+      </Provider>,
     ),
   );
 
   // Grab the CSS from our sheets.
   const css = sheets.toString();
 
+  // Grab the initial state from our Redux store
+  const preloadedState = store.getState()
+
   // Send the rendered page back to the client.
-  res.send(renderFullPage(html, css));
+  res.send(renderFullPage(html, css, preloadedState));
 }
 
 const app = express();
