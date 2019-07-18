@@ -1,4 +1,6 @@
 import express from 'express';
+import cookieParser from 'cookie-parser';
+import ClientOAuth2 from 'client-oauth2';
 import React from 'react';
 import ReactDOMServer from 'react-dom/server';
 import CssBaseline from '@material-ui/core/CssBaseline';
@@ -29,9 +31,9 @@ function renderFullPage(html, css, preloadedState) {
           // WARNING: See the following for security issues around embedding JSON in HTML:
           // http://redux.js.org/recipes/ServerRendering.html#security-considerations
           window.__PRELOADED_STATE__ = ${JSON.stringify(preloadedState).replace(
-            /</g,
-            '\\u003c'
-          )}
+    /</g,
+    '\\u003c'
+  )}
         </script>
       </body>
     </html>
@@ -69,12 +71,45 @@ function handleRender(req, res) {
   res.send(renderFullPage(html, css, preloadedState));
 }
 
+function getClientOAuth2() {
+  return new ClientOAuth2({
+    clientId: 'client',
+    clientSecret: 'secret',
+    accessTokenUri: 'http://localhost:9180/oauth/token',
+    authorizationUri: 'http://localhost:9180/oauth/authorize',
+    redirectUri: 'http://localhost:3000/dashboard',
+    scopes: ['read', 'write']
+  });
+}
+
+function getAccessToken(code, req, res) {
+  getClientOAuth2().code.getToken(req.originalUrl)
+    .then(function (user) {
+      res.cookie('accessToken', user.accessToken);
+
+      handleRender(req, res);
+    });
+}
+
 const app = express();
+
+app.use(cookieParser());
 
 app.use('/build', express.static('build'));
 
-// This is fired every time the server-side receives a request.
-app.use(handleRender);
+app.use(function (req, res, next) { // Redirect from Auth new Token
+  if (req.path == '/dashboard' && req.query.code) {
+    getAccessToken(req.query.code, req, res);
+  } else if (req.path == '/') { // Root Page No auth needed
+    handleRender(req, res);
+  } else { // Authenticated pages check for token and refresh
+    if (req.cookies.accessToken) {
+      handleRender(req, res);
+    } else {
+      res.redirect("/");
+    }
+  }
+});
 
 const port = 3000;
 app.listen(port, () => {

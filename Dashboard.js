@@ -1,12 +1,12 @@
 import React from 'react'
 import { Typography } from '@material-ui/core'
 
-class About extends React.Component {
+class Dashboard extends React.Component {
     render() {
         return (
-            <Typography variant="h3">About</Typography>
+            <Typography variant="h3">Dashboard</Typography>
         );
     }
 }
 
-export default About
+export default Dashboard
