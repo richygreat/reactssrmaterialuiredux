@@ -82,12 +82,16 @@ function getAccessToken(authCode, req, res) {
 }
 
 function refreshToken(req, res) {
-  var payload = {
-    grant_type: 'refresh_token',
-    refresh_token: req.cookies.refreshToken
+  var now = new Date();
+  if (now < Date.parse(req.cookies.expiryDate)) {
+    handleRender(req, res);
+  } else {
+    var payload = {
+      grant_type: 'refresh_token',
+      refresh_token: req.cookies.refreshToken
+    }
+    callTokenEndpoint(payload, req, res);
   }
-
-  callTokenEndpoint(payload, req, res);
 }
 
 function callTokenEndpoint(payload, req, res) {
@@ -100,7 +104,14 @@ function callTokenEndpoint(payload, req, res) {
   }).then(response => {
     res.cookie('accessToken', response.data.access_token);
     res.cookie('refreshToken', response.data.refresh_token);
+    var expiresIn = response.data.expires_in;
+    var expiryDate = new Date();
+    expiryDate.setSeconds(expiryDate.getSeconds() + parseInt(expiresIn) - 30); // 30 is the session timeout
+    res.cookie('expiryDate', expiryDate);
+
     handleRender(req, res);
+  }).catch(error => {
+    res.redirect("/");
   });
 }
 
@@ -116,7 +127,7 @@ app.use(function (req, res, next) { // Redirect from Auth new Token
   } else if (req.path == '/') { // Root Page No auth needed
     handleRender(req, res);
   } else { // Authenticated pages check for token and refresh
-    if (req.cookies.accessToken) {
+    if (req.cookies.accessToken && req.cookies.expiryDate) {
       refreshToken(req, res);
     } else {
       res.redirect("/");
