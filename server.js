@@ -1,6 +1,7 @@
 import express from 'express';
+import querystring from 'querystring';
 import cookieParser from 'cookie-parser';
-import ClientOAuth2 from 'client-oauth2';
+import axios from "axios";
 import React from 'react';
 import ReactDOMServer from 'react-dom/server';
 import CssBaseline from '@material-ui/core/CssBaseline';
@@ -71,24 +72,36 @@ function handleRender(req, res) {
   res.send(renderFullPage(html, css, preloadedState));
 }
 
-function getClientOAuth2() {
-  return new ClientOAuth2({
-    clientId: 'client',
-    clientSecret: 'secret',
-    accessTokenUri: 'http://localhost:9180/oauth/token',
-    authorizationUri: 'http://localhost:9180/oauth/authorize',
-    redirectUri: 'http://localhost:3000/dashboard',
-    scopes: ['read', 'write']
-  });
+function getAccessToken(authCode, req, res) {
+  var payload = {
+    grant_type: 'authorization_code',
+    code: authCode
+  }
+
+  callTokenEndpoint(payload, req, res);
 }
 
-function getAccessToken(code, req, res) {
-  getClientOAuth2().code.getToken(req.originalUrl)
-    .then(function (user) {
-      res.cookie('accessToken', user.accessToken);
+function refreshToken(req, res) {
+  var payload = {
+    grant_type: 'refresh_token',
+    refresh_token: req.cookies.refreshToken
+  }
 
-      handleRender(req, res);
-    });
+  callTokenEndpoint(payload, req, res);
+}
+
+function callTokenEndpoint(payload, req, res) {
+  var headers = {
+    'Authorization': 'Basic Y2xpZW50OnNlY3JldA=='
+  }
+
+  axios.post('http://localhost:9180/oauth/token', querystring.stringify(payload), {
+    headers: headers
+  }).then(response => {
+    res.cookie('accessToken', response.data.access_token);
+    res.cookie('refreshToken', response.data.refresh_token);
+    handleRender(req, res);
+  });
 }
 
 const app = express();
@@ -104,7 +117,7 @@ app.use(function (req, res, next) { // Redirect from Auth new Token
     handleRender(req, res);
   } else { // Authenticated pages check for token and refresh
     if (req.cookies.accessToken) {
-      handleRender(req, res);
+      refreshToken(req, res);
     } else {
       res.redirect("/");
     }
